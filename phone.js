@@ -20,12 +20,14 @@
     for (const e of document.querySelectorAll('.app-back')) e.textContent = app[3];
   }
 
-  // 안드로이드 브라우저에서는 붙여 넣기 창 ②의 ChatGPT 링크를 앱으로 여는 intent 링크로 바꾼다(앱 안 화면은 AI 링크를 숨기므로 빼고).
-  // 웹 링크는 깔린 앱으로 넘어가지 않고 로그아웃된 웹으로 열린다. 주소는 /open-app: 첫 주소(/)를 받으면 앱이 크롬으로 되돌려 보낸다.
-  // 앱이 있으면 로그인된 앱의 새 대화가 열리고, 없으면 크롬이 원래 웹 주소를 새 탭으로 연다
+  // 안드로이드 브라우저에서는 붙여 넣기 창 ②의 AI 링크를 앱으로 여는 intent 링크로 바꾼다(앱 안 화면은 AI 링크를 숨기므로 빼고).
+  // 받을 앱이 있으면 로그인된 앱이 열리고, 없으면 크롬이 원래 웹 주소를 새 탭으로 연다. 웹 링크 그대로면 브라우저가 앱으로 안 넘기기도 한다.
+  // ChatGPT: 주소는 /open-app — 첫 주소(/)를 받으면 앱이 크롬으로 되돌려 보낸다. Gemini는 구글 앱이 받으므로 앱 이름을 정하지 않는다
   if (!app && /Android/i.test(navigator.userAgent)) {
-    const gpt = [...document.querySelectorAll('.ai-open a')].find(a => a.hostname === 'chatgpt.com');
-    if (gpt) gpt.href = 'intent://chatgpt.com/open-app#Intent;scheme=https;package=com.openai.chatgpt;S.browser_fallback_url=' + encodeURIComponent(gpt.href) + ';end';
+    for (const a of document.querySelectorAll('.ai-open a')) {
+      const gpt = a.hostname === 'chatgpt.com';
+      a.href = 'intent://' + a.hostname + (gpt ? '/open-app' : a.pathname) + '#Intent;scheme=https;' + (gpt ? 'package=com.openai.chatgpt;' : '') + 'S.browser_fallback_url=' + encodeURIComponent(a.href) + ';end';
+    }
   }
 
   const tbl = document.querySelector('#s1 .tbl');
