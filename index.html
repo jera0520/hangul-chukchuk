@@ -18,6 +18,8 @@
 <meta property="og:locale" content="ko_KR">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="howto.css">
+<script src="howto.js" defer></script>
 </head>
 <body>
 <style>
@@ -373,12 +375,14 @@ label.drop:focus-visible, label.pick:focus-visible, label.slot:focus-visible { o
 .ps-pic { width: 96px; height: 70px; color: var(--navy); margin-top: 8px; }
 .ps-body { display: grid; gap: 8px; min-width: 0; }
 .ps-say { font-weight: 600; }
+/* AI 답 상자의 복사 단추는 글자 없이 겹친 네모 아이콘이라 안내 글 안에 같은 모양을 그려 둔다 */
+.ic-copy { width: 1.05em; height: 1.05em; vertical-align: -.17em; margin: 0 .12em 0 .05em; color: var(--ink); }
 .paste-steps textarea { margin-top: 0; }
 .keys { white-space: nowrap; margin-left: 6px; font-weight: 400; color: var(--muted); }
 kbd { display: inline-block; font: 600 14px/1 var(--f-body); color: var(--ink); background: var(--th); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 4px 7px; margin: 0 2px; }
 .ai-open { font-size: 16.5px; color: var(--muted); }
 .ai-open a { color: var(--link); font-weight: 600; }
-/* 지금 칸의 그림만 한 번 움직인다: 종이가 한 장 더 생기고, 글이 입력칸으로 들어가 보내지고, 「코드 복사」 뒤 화살표가 내려온다 */
+/* 지금 칸의 그림만 한 번 움직인다: 종이가 한 장 더 생기고, 글이 입력칸으로 들어가 보내지고, 복사 단추 뒤 화살표가 내려온다 */
 .paste-steps li.now .copy-sheet { animation: ps-copy 1.4s var(--ease-out) .25s 2 both; }
 @keyframes ps-copy { 0% { transform: none; opacity: 0; } 30% { opacity: 1; } 70%, 100% { transform: translate(14px, 9px); opacity: 1; } }
 .paste-steps li .copy-sheet { transform: translate(14px, 9px); }
@@ -465,7 +469,16 @@ kbd { display: inline-block; font: 600 14px/1 var(--f-body); color: var(--ink); 
       <h1><svg class="fileic" aria-hidden="true" focusable="false"><use href="#ic-hwp"/></svg>한글 척척</h1>
       <p class="lead">한글 보고서, <span class="nw">양식 그대로 <em>AI가 써 줍니다</em></span></p>
     </div>
-    <p class="meta-line">무료 · 한글 프로그램이 없어도 됩니다(윈도우·맥)</p>
+    <div class="meta-row">
+      <button type="button" class="howto-open" id="howto-open" aria-haspopup="dialog" hidden><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9.8 7.6v8.8l7-4.4z" fill="currentColor"/></svg><span class="howto-t">사용법 영상 보기</span><span class="howto-len">50초</span></button>
+      <p class="meta-line">무료 · 한글 프로그램이 없어도 됩니다(윈도우·맥)</p>
+    </div>
+    <dialog class="howto-dlg" id="howto-dlg" aria-label="한글 척척 사용법 영상">
+      <div class="howto-box">
+        <button type="button" class="howto-x">닫기</button>
+        <video src="howto.mp4" poster="howto_poster.jpg" preload="none" controls playsinline width="720" height="1280"></video>
+      </div>
+    </dialog>
     <p class="warn" id="dl-warn" hidden>지금 열린 claude.ai 화면에서는 파일 받기가 막혀 있습니다. 시작하기 전에 화면 맨 위 제목 「한글 척척」을 눌러 「복제」(Duplicate)를 고르세요. 열리는 내 복사본에서는 한글 파일을 받을 수 있습니다.</p>
     <div class="aipick" role="radiogroup" aria-labelledby="aipick-h">
       <span class="aipick-h" id="aipick-h">글은 어느 AI가 쓸까요?</span>
@@ -681,7 +694,7 @@ kbd { display: inline-block; font: 600 14px/1 var(--f-body); color: var(--ink); 
           <rect x="11" y="54" width="66" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
         </svg>
         <div class="ps-body">
-          <label for="paste-in" class="ps-say">AI 답의 「코드 복사」를 누르고 여기에 붙여 넣기 <span class="keys"><kbd class="k-mod">Ctrl</kbd>+<kbd>V</kbd></span></label>
+          <label for="paste-in" class="ps-say">AI 답 상자 오른쪽 위 <svg class="ic-copy" viewBox="0 0 16 16" role="img" aria-label="겹친 네모 모양" focusable="false"><rect x="5.6" y="5.6" width="8.4" height="8.4" rx="1.7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.6 3.4v-.1A1.6 1.6 0 0 0 9 1.7H3.3a1.6 1.6 0 0 0-1.6 1.6V9a1.6 1.6 0 0 0 1.6 1.6h.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>복사 단추를 누르고 여기에 붙여 넣기 <span class="keys"><kbd class="k-mod">Ctrl</kbd>+<kbd>V</kbd></span></label>
           <textarea id="paste-in" rows="5" placeholder="AI 답 붙여 넣기"></textarea>
         </div>
       </li>

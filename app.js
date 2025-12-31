@@ -764,7 +764,7 @@ function pasteAsk(prompt, o = {}) {
       const fill = !!(st.frozen && st.frozen.fill);
       if (flatAnswer(t, fill)) {
         say('#paste-msg', ['줄바꿈이 사라진 채로 복사됐습니다. 이대로는 문서 모양을 알 수 없습니다.',
-          'AI 답이 든 코드 상자의 「코드 복사」 단추로 복사해 주세요. 코드 상자가 없으면 AI에게 "답 전체를 코드 블록 하나에 넣어 다시 보여 줘"라고 한 뒤 복사해 주세요.']);
+          'AI 답이 든 코드 상자 오른쪽 위의 복사 단추(네모 두 개가 겹친 모양)로 복사해 주세요. 코드 상자가 없으면 AI에게 "답 전체를 코드 블록 하나에 넣어 다시 보여 줘"라고 한 뒤 복사해 주세요.']);
         return;
       }
       const r = readAnswer(t, fill, true);

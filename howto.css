@@ -1,0 +1,17 @@
+/* 사이트판에만: 머리의 「사용법 영상 보기」와 영상 창. 누를 때만 열리고 받는다(자동 재생·미리 받기 없음) */
+.meta-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 24px; }
+.meta-row .meta-line { margin-left: auto; }
+.howto-open { display: inline-flex; align-items: center; gap: 8px; margin: 0; padding: 6px 0; border: 0; background: none; color: var(--accent); font: 600 18px/1.4 var(--f-body); cursor: pointer; text-decoration: none; }
+.howto-t { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px; }
+.howto-open:hover .howto-t { text-decoration-thickness: 2px; }
+.howto-open svg { width: 24px; height: 24px; flex: none; }
+.howto-len { color: var(--muted); font-weight: 400; font-size: 15px; }
+.howto-dlg { padding: 0; border: 0; background: transparent; overflow: visible; }
+.howto-dlg::backdrop { background: rgba(8, 12, 18, .78); }
+.howto-box { display: grid; gap: 10px; justify-items: end; }
+.howto-x { margin: 0; padding: 6px 4px; border: 0; background: none; color: #fff; font: 600 17px/1.4 var(--f-body); cursor: pointer; text-decoration: underline; text-underline-offset: 5px; }
+.howto-box video { display: block; width: min(92vw, 47vh, 486px); height: auto; aspect-ratio: 9 / 16; background: #000; box-shadow: 0 20px 60px rgba(0, 0, 0, .45); }
+@media (max-width: 720px) {
+  .howto-open { font-size: 17px; }
+  .meta-row .meta-line { margin-left: 0; }
+}
