@@ -2,6 +2,7 @@
 // 단추 속 미리보기(howto_peek.mp4, 소리 없음)는 페이지가 다 열린 뒤, 1단계에서 단추가 화면에 보일 때만 받아 반복한다.
 // 동작 줄이기나 데이터 절약을 켠 사람에게는 첫 그림만 보여 준다.
 // 문서 캐릭터(척척이)는 처음에 미리보기 뒤에서 나와 손을 흔들고, 1단계에서 가만히 있으면 가끔 뛰거나 숨었다 나온다(네 번까지).
+// 영상이 끝나면 창을 저절로 닫고, 닫으면 이제 할 곳을 가리킨다(휴대폰은 「컴퓨터로 주소 보내기」(phone.js), 컴퓨터는 양식 칸 시연).
 // 창(dialog)을 못 여는 옛 브라우저에서는 단추를 감춘 그대로 둔다.
 (() => {
   const open = document.getElementById('howto-open');
@@ -90,10 +91,26 @@
   dlg.querySelector('.howto-x').addEventListener('click', () => dlg.close());
   // 영상 바깥(어두운 곳)을 눌러도 닫힌다
   dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+  // 이제 할 곳: 1단계에서 아직 양식을 고르지 않았을 때만. 화면 밖이면 보이는 곳까지 굴리고, 동작 줄이기면 굴리기만 한다
+  const guide = () => {
+    const next = document.getElementById('to2');
+    if (busy() || (next && !next.disabled)) return;
+    const t = document.getElementById('pc-send') || document.getElementById('f-drop');
+    if (!t || t.offsetParent === null) return;
+    const r = t.getBoundingClientRect();
+    if (r.top < 0 || r.bottom > innerHeight) t.scrollIntoView({ block: 'center', behavior: calm.matches ? 'auto' : 'smooth' });
+    if (calm.matches) return;
+    const cls = t.id === 'f-drop' ? 'demo' : 'ring';
+    t.classList.remove(cls);
+    void t.offsetWidth;
+    t.classList.add(cls);
+    later(() => t.classList.remove(cls), cls === 'demo' ? 1800 : 1000);
+  };
+  v.addEventListener('ended', () => later(() => { if (dlg.open) dlg.close(); }, 600));
   dlg.addEventListener('close', () => {
     v.pause();
-    open.focus();
+    open.focus({ preventScroll: true });
     peekOn();
-    later(() => { act('hop', 900); act('wave', 1100); }, 250);
+    later(guide, 250);
   });
 })();

@@ -76,9 +76,11 @@ function keyable(lb) {
     document.getElementById(lb.htmlFor).click();
   });
 }
+// 휴대폰(손가락으로만 누르는 좁은 화면): 끌어다 놓기를 못 하므로 끌기 그림을 빼고(index.html), 양식 칸 시연 대신 「기본 보고서 틀로 시작하기」를 가리킨다
+const phone = () => matchMedia('(hover: none) and (pointer: coarse) and (max-width: 600px)').matches;
 // 양식 칸 시연: 한글 파일이 손에 들려 칸 안 받침으로 들어간다(처음 한 번, 한동안 가만히 있으면 한두 번 더)
 function dropDemo() {
-  if (calm()) return;
+  if (calm() || phone()) return;
   replay($('#f-drop'), 'demo', 1800);
 }
 // 부탁 글 칸이 비어 있으면 예시 하나가 한 글자씩 써진다(2초쯤, 5초를 넘기지 않게). 칸을 누르거나 글을 쓰면 멈추고,
@@ -270,7 +272,7 @@ const onForm = setupDrop($('#f-input'), async fs => {
 });
 
 // 파일을 끌어오면 창 어디에 놓아도 받는다: 1단계는 양식, 2단계는 사진·자료. 칸을 빗나가도 브라우저가 파일을 열어 버리지 않는다
-const DROP_SMALL = $('#f-drop .drop-small').textContent;
+const DROP_SMALL = $('#f-drop .drop-small').innerHTML;
 let dragN = 0;
 const hasFiles = e => !!e.dataTransfer && [...e.dataTransfer.types].includes('Files');
 function dropTo() {
@@ -287,7 +289,9 @@ function dropTo() {
 }
 function dragging(on) {
   document.body.classList.toggle('dragging', on);
-  $('#f-drop .drop-small').textContent = on ? '여기에 놓으세요' : DROP_SMALL;
+  const small = $('#f-drop .drop-small');
+  if (on) small.textContent = '여기에 놓으세요';
+  else small.innerHTML = DROP_SMALL;
 }
 addEventListener('dragenter', e => { if (!hasFiles(e)) return; e.preventDefault(); if (dragN++ === 0 && dropTo()) dragging(true); });
 addEventListener('dragleave', e => { if (!hasFiles(e)) return; if (--dragN <= 0) { dragN = 0; dragging(false); } });
@@ -313,6 +317,8 @@ const standard = () => (stdP = stdP || fetch('samples/standard_report.hwpx.b64.t
 $('#f-default').addEventListener('click', async () => {
   await useForm('기본 보고서 틀.hwpx', await standard(), true);
 });
+// 파일 고르기 창을 그냥 닫으면(올릴 양식이 없으면) 「기본 보고서 틀로 시작하기」를 한 번 가리킨다
+$('#f-input').addEventListener('cancel', () => { if (!calm() && !st.form && !st.busy) replay($('#f-default'), 'ring'); });
 
 // 양식을 올리면 붙임 자리의 예시 비교 대신 올린 양식의 첫 쪽을 보여 준다
 async function showSheet(bytes, cap) {
@@ -1552,7 +1558,7 @@ let idleT = 0;
 function idleTarget() {
   if (!$('#paste').hidden) return $('#paste .paste-steps > li.now');
   if (st.busy) return null;
-  if (st.step === 1) return st.form ? $('#to2') : $('#f-drop');
+  if (st.step === 1) return st.form ? $('#to2') : phone() ? $('#f-default') : $('#f-drop');
   if (st.step === 2) return $('#req').value.trim() ? $('#to3') : $('#req');
   if (st.step === 3) return $('#q-actions').hidden ? null : $('#make');
   if (st.step === 4) return st.result && !st.result.got ? $('#get-hwpx') : null;
