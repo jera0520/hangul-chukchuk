@@ -133,6 +133,7 @@ def cover(path):
 FIXED_RATIO = 0.8  # 글자처럼 취급한 표의 높이가 쪽 본문 높이의 이만큼 이상이면 쪽 크기 표로 본다
 MIN_LS = 120       # 넘친 칸을 맞출 때 줄 간격(%)을 이보다 줄이지 않는다
 TOL = 60           # 어림 오차(HWPUNIT, 약 0.2mm)
+EDGE_TOL = 280     # 쪽 크기 표가 종이 끝 1mm 앞까지 내려오면 잘리는 것으로 본다(어림 오차 여유)
 
 
 def page_box(sec):
@@ -150,6 +151,20 @@ def page_box(sec):
         except (TypeError, ValueError):
             pass
     return W, Hh
+
+
+def page_edge(sec):
+    """쪽 본문 위에서 종이 아래 끝까지의 높이(본문 + 꼬리말 + 아래 여백). 한글은 글자처럼 취급한 쪽 크기 표가
+    본문보다 길면 아래 여백까지 그대로 그리고 종이 끝에서 자른다(한컴 뷰어로 확인)."""
+    Hh = page_box(sec)[1]
+    pp = next(sec.iter(H.P('pagePr')), None)
+    m = pp.find(H.P('margin')) if pp is not None else None
+    if m is None:
+        return Hh
+    try:
+        return Hh + int(m.get('bottom', '0') or 0) + int(m.get('footer', '0') or 0)
+    except (TypeError, ValueError):
+        return Hh
 
 
 def fixed_tables(sec, Hh):
@@ -408,6 +423,7 @@ def fit(path, keys, out_path):
     hed._load()
     g = H.PageGauge(hed.root, [sec])
     W, Hh = page_box(sec)
+    edge = page_edge(sec)
     fixed = fixed_tables(sec, Hh)
     # 쪽 크기 표마다 원래 높이·쪽 번호(PageGauge.pages처럼 쪽을 넘기며 센다)
     info = {}
@@ -477,8 +493,8 @@ def fit(path, keys, out_path):
         if not fx:
             continue
         h1 = g.table(t)
-        cut = h1 - max(Hh, fx['h0'])
-        if cut > TOL and fx['cells']:
+        cut = h1 + EDGE_TOL - max(edge, fx['h0'])
+        if cut > 0 and fx['cells']:
             H.strip_lineseg(fp)
             lines = max(1, int(round(cut / float(fx['pit']))))
             what = ', '.join(over_text(fx['cells']))
