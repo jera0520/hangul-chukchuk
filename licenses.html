@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self'">
+<title>한글 척척 사용권</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+:root { --bg: #eef1f5; --ink: #121a2a; --muted: #4c586b; --line: #c9d1dc; --accent: #1d4f91; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0e131a; --ink: #e8edf4; --muted: #a3aebe; --line: #2c3646; --accent: #8fb6ff; } }
+body { margin: 0 auto; max-width: 860px; padding: 28px 16px 80px; background: var(--bg); color: var(--ink); font: 18px/1.65 "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; word-break: keep-all; overflow-wrap: anywhere; }
+h1 { font: 700 30px/1.3 "Hahmlet", "AppleMyungjo", "Batang", serif; margin: 0 0 8px; }
+p { color: var(--muted); }
+a { color: var(--accent); }
+table { width: 100%; border-collapse: collapse; font-size: 16px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 8px; border-top: 1px solid var(--line); }
+th { font-weight: 600; }
+@media (max-width: 640px) { thead { display: none; } tr, td { display: block; } td { border: 0; padding: 2px 0; } tr { border-top: 1px solid var(--line); padding: 10px 0; } }
+</style>
+</head>
+<body>
+<h1>한글 척척에 들어 있는 오픈소스</h1>
+<p>한글 척척(사이트판 1.0)은 아래 오픈소스 프로그램과 글꼴을 고치지 않고 함께 담아 보냅니다. 사용권 원문은 각 줄의 파일에 있습니다. <a href="./">한글 척척으로 돌아가기</a></p>
+<table>
+<thead><tr><th>이름</th><th>하는 일</th><th>사용권</th><th>원문</th></tr></thead>
+<tbody>
+<tr><td><a href="https://github.com/edwardkim/rhwp" rel="noopener">rhwp 0.8.6 (@rhwp/core)</a></td><td>양식 미리보기, .hwp로 바꾸기</td><td>MIT License · Copyright (c) 2025-2026 Edward Kim</td><td><a href="licenses/rhwp-MIT.txt">rhwp-MIT.txt</a></td></tr>
+<tr><td><a href="https://github.com/pyodide/pyodide" rel="noopener">Pyodide 0.29.5</a></td><td>브라우저 안 파이썬(한글 엔진을 돌림)</td><td>Mozilla Public License 2.0</td><td><a href="licenses/pyodide-MPL-2.0.txt">pyodide-MPL-2.0.txt</a></td></tr>
+<tr><td><a href="https://github.com/python/cpython" rel="noopener">Python 3.13 표준 라이브러리</a></td><td>Pyodide에 들어 있음</td><td>Python Software Foundation License</td><td><a href="licenses/python-PSF.txt">python-PSF.txt</a></td></tr>
+<tr><td><a href="https://github.com/lxml/lxml" rel="noopener">lxml 6.0.2</a></td><td>한글 파일(XML) 읽고 쓰기</td><td>BSD License</td><td><a href="licenses/lxml-LICENSE.txt">lxml-LICENSE.txt</a><br><a href="licenses/lxml-LICENSES.txt">lxml-LICENSES.txt</a><br><a href="licenses/lxml-BSD.txt">lxml-BSD.txt</a><br><a href="licenses/lxml-elementtree.txt">lxml-elementtree.txt</a></td></tr>
+<tr><td><a href="https://gitlab.gnome.org/GNOME/libxml2" rel="noopener">libxml2 · libxslt</a></td><td>lxml 안에 들어 있음</td><td>MIT License</td><td><a href="licenses/libxml2.txt">libxml2.txt</a><br><a href="licenses/libxslt.txt">libxslt.txt</a></td></tr>
+<tr><td><a href="https://github.com/hyper-type/hahmlet" rel="noopener">Hahmlet</a></td><td>제목 글꼴(구글 글꼴이 나눈 조각)</td><td>SIL Open Font License 1.1</td><td><a href="fonts/OFL-Hahmlet.txt">OFL-Hahmlet.txt</a></td></tr>
+<tr><td><a href="https://github.com/IBM/plex" rel="noopener">IBM Plex Sans KR</a></td><td>본문 글꼴(IBM 공식 배포 파일 그대로)</td><td>SIL Open Font License 1.1 · Reserved Font Name &quot;Plex&quot;</td><td><a href="fonts/OFL-IBMPlexSansKR.txt">OFL-IBMPlexSansKR.txt</a></td></tr>
+</tbody>
+</table>
+<p>Pyodide의 소스 코드는 위 Pyodide 줄의 GitHub 주소에서 받을 수 있습니다.</p>
+</body>
+</html>
