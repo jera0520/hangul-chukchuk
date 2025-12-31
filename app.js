@@ -386,7 +386,7 @@ async function analyze(maskedBytes, wantSlots) {
   const analysis = r.log.split(/\n- 개요 파일:/)[0].trim();
   const fill = /서식형 문서입니다/.test(analysis);
   let slots = '';
-  const cover = {};
+  const cover = {}, room = {};
   if (wantSlots === undefined ? fill : wantSlots) {
     slots = (await eng(['slots', '/w/f.hwpx'], { 'f.hwpx': maskedBytes }, [])).log;
     // 제출 문구·날짜·서명란 칸(…제출합니다 / 년 월 일 / (서명 또는 인) / ○○장 귀하)은 칸 목록에 줄 전체를 보여 주고 줄 수를 적는다.
@@ -400,8 +400,17 @@ async function analyze(maskedBytes, wantSlots) {
         slots = slots.replace(new RegExp('^' + k.replace(/\./g, '\\.') + ' .*$', 'm'), (k + ' ').padEnd(11) + `[제출 문구·서명란 ${n}줄] ` + text);
       }
     }
+    // 쪽 크기 표(법정 서식처럼 쪽마다 글자처럼 취급한 표) 칸에 들어가는 분량. 한글은 칸을 글에 맞춰 늘리는데
+    // 이 표는 다음 쪽으로 못 넘어가 쪽 아래가 잘리므로 AI에게 칸마다 분량을 알려 준다(칸 목록 자체는 그대로 둔다)
+    const rm = await eng(['room', '/w/f.hwpx'], { 'f.hwpx': maskedBytes }, [], 'extra');
+    if (rm.code === 0) {
+      for (const line of rm.log.split('\n')) {
+        const [k, n, w] = line.split('\t');
+        if (/^T\d+\.\d+\.\d+$/.test(k) && +n > 0 && +w > 0) room[k] = [+n, +w];
+      }
+    }
   }
-  return { analysis, outline0: DEC.decode(r.files['o.txt']), fill, slots, cover };
+  return { analysis, outline0: DEC.decode(r.files['o.txt']), fill, slots, cover, room };
 }
 
 function cleanLog(log) {
@@ -819,7 +828,7 @@ async function freeze() {
   const analysis = fill ? an.analysis : an.analysis.split('\n').filter(l => !/서식형 문서입니다/.test(l)).join('\n');
   const mask = t => HG.maskText(t || '', on);
   st.frozen = {
-    on: on.slice(), map: Object.assign({}, map), formBytes, analysis, outline0: an.outline0, slots: an.slots, cover: an.cover || {}, fill,
+    on: on.slice(), map: Object.assign({}, map), formBytes, analysis, outline0: an.outline0, slots: an.slots, cover: an.cover || {}, room: an.room || {}, fill,
     request: mask($('#req').value),
     mats: st.mats.map(m => ({ name: mask(m.name), text: mask(m.text) })),
     photoCaps: st.photos.map(p => mask(p.caption.trim())),
@@ -847,7 +856,7 @@ function maskMore(texts) {
 
 function aiCtx() {
   const f = st.frozen;
-  return { analysis: f.analysis, outline0: f.outline0, slots: f.slots, fill: f.fill, isDefault: st.form.isDefault, request: f.request, mats: f.mats, photos: f.photoCaps };
+  return { analysis: f.analysis, outline0: f.outline0, slots: f.slots, room: f.room || {}, fill: f.fill, isDefault: st.form.isDefault, request: f.request, mats: f.mats, photos: f.photoCaps };
 }
 
 let aiNow = null;
@@ -1042,8 +1051,14 @@ const bodyText = body => (st.frozen.fill ? JSON.stringify(body, null, 1) : Strin
 // 칸 채우기 값에서 양식을 망가뜨리는 것을 뺀다.
 // - AI가 사진과 상관없는 칸(사업명 칸 등)에 [사진]을 쓰면 그 작은 칸에 사진이 들어간다. 칸 목록 줄(칸 글자·이웃 칸 힌트)에
 //   '사진'이 없는 칸의 [사진]은 뺀다. 사진 칸이 없으면 사진은 끝 '붙임 사진' 쪽으로 간다(finalize).
+// - 사진 칸이 아닌 칸의 글 속 [사진] 글자(예: '- [사진] 헌책 장터')는 지운다. 그대로 두면 문서에 '[사진]'이 글자로 찍힌다.
+//   [사진]만 있던 줄은 줄째 뺀다.
 // - 제출 문구·서명란 칸은 줄 수가 원래와 같을 때만 넣는다(줄을 빼고 다시 쓰면 첨부 서류·서명란·귀하 줄이 사라진다).
 const PHOTO_VAL = /^\s*\[\s*사진\s*\d*\s*\]\s*$/;
+const PHOTO_TOKEN = /\[\s*사진\s*\d*\s*\]\s*/g;
+const dropPhotoTokens = v => String(v).split('\n')
+  .filter(l => !(/\[\s*사진\s*\d*\s*\]/.test(l) && /^[\s\-–·•○◦▪*]*$/.test(l.replace(PHOTO_TOKEN, ''))))
+  .map(l => l.replace(PHOTO_TOKEN, '')).join('\n');
 function safeBody(body) {
   const f = st.frozen;
   if (!f.fill || !body || typeof body !== 'object') return body;
@@ -1055,9 +1070,10 @@ function safeBody(body) {
   const cover = f.cover || {};
   const lines = v => String(v ?? '').split('\n').filter(x => x.trim()).length;
   const out = {};
-  for (const [k, v] of Object.entries(body)) {
+  for (let [k, v] of Object.entries(body)) {
     if (!ok.has(k) && PHOTO_VAL.test(String(v ?? ''))) continue;
     if (cover[k] && lines(v) !== cover[k]) continue;
+    if (!ok.has(k) && typeof v === 'string' && /\[\s*사진\s*\d*\s*\]/.test(v)) v = dropPhotoTokens(v);
     out[k] = v;
   }
   return out;
@@ -1138,6 +1154,23 @@ async function finalize() {
   const rs = await HG.restoreFile(await HG.openHwpx('r.hwpx', res.built), f.map);
   let bytes = rs.bytes;
   res.missing = rs.missing;
+  // AI가 채운 칸이 넘치면: 쪽 크기 표 칸은 줄 간격을 조금 줄여 맞추고, 그래도 넘치면 한글처럼 칸을 늘린다(미리보기도 한글과 같게).
+  // 쪽 크기 표가 쪽보다 커지면 한글에서 쪽 아래가 잘리므로 알린다(res.over)
+  res.fitLog = '';
+  res.over = [];
+  const keys = f.fill && res.body && typeof res.body === 'object' ? Object.keys(res.body).filter(k => /^T\d+\.\d+\.\d+$/.test(k)) : [];
+  if (keys.length) {
+    busyText('칸 크기를 맞추는 중');
+    const r = await eng(['fit', '/w/a.hwpx', '/w/k.json', '-o', '/w/b.hwpx'], { 'a.hwpx': bytes, 'k.json': ENC.encode(JSON.stringify(keys)) }, ['b.hwpx'], 'extra');
+    if (r.code === 0 && r.files['b.hwpx']) {
+      bytes = r.files['b.hwpx'];
+      res.fitLog = r.log;
+      for (const line of r.log.split('\n')) {
+        const [tag, page, what] = line.split('\t');
+        if (tag === '넘침' && what) res.over.push({ page: +page, what });
+      }
+    }
+  }
   let doc = await HG.openHwpx('r.hwpx', bytes);
   let slots = await HG.photoSlots(doc);
   res.slotCount = slots.length;
@@ -1303,12 +1336,27 @@ function renderResult() {
   const notes = [];
   if (res.photoNote) notes.push(res.photoNote);
   if (res.missing && res.missing.length) notes.push(`${res.missing.join(', ')} 표시는 원래 말을 몰라 그대로 남았습니다. 한글에서 고쳐 주세요.`);
-  for (const l of (res.log || '').split('\n')) {
-    if (/^- (쪽 수|참고|확인|주의)/.test(l) && !/가리개|사진 자리/.test(l)) notes.push(l.replace(/^- /, ''));
+  // 엔진의 '칸이 늘어날 수 있습니다'(글자 수 어림)는 칸 맞춤(fitLog)이 실제로 잰 결과로 대신한다
+  for (const l of ((res.fitLog || '') + '\n' + (res.log || '')).split('\n')) {
+    if (/^- (쪽 수|참고|확인|주의)/.test(l) && !/가리개|사진 자리/.test(l) && !(res.fitLog && /칸이 늘어날 수 있습니다/.test(l))) notes.push(l.replace(/^- /, ''));
   }
   notes.push('.hwp로 내야 하면 한글에서 [다른 이름으로 저장하기] → 파일 형식 \'한글 문서(*.hwp)\'로 저장하는 것이 가장 정확합니다.');
   $('#notes').replaceChildren(...notes.map(t => el('li', { text: t })));
-  say('#get-msg', []);
+  // 쪽 크기 표가 넘치면(한글에서 쪽 아래가 잘림) 받기 단추 아래에 바로 알리고, 고칠 점을 채워 둔다
+  say('#get-msg', overWarn() || []);
+  if (res.over && res.over.length && !$('#wish').value.trim()) $('#wish').value = res.over.map(o => `${o.page}쪽 칸에 맞게 줄여 줘(넘친 칸: ${o.what})`).join('\n');
+}
+
+function overWarn() {
+  const o = st.result && st.result.over;
+  if (!o || !o.length) return '';
+  return `${o.map(x => x.page + '쪽').join('·')}은 칸보다 글이 많아 한글에서 쪽 아래가 잘립니다. 아래 「AI에게 고쳐 달라고 하기」에 적어 둔 대로 고쳐 달라고 해 주세요.`;
+}
+
+// 다시 만든 뒤 알림. 쪽이 넘치면 그 알림을 함께 둔다
+function sayDone(text) {
+  const w = overWarn();
+  $('#get-msg').replaceChildren(el('p', { class: 'ok', text }), ...(w ? [el('p', { text: w })] : []));
 }
 
 $('#refill').addEventListener('click', async () => {
@@ -1338,7 +1386,7 @@ $('#refill').addEventListener('click', async () => {
     keepPrev();
     st.result = { body: r.body, built: r.bytes, log: r.log };
     await finalize();
-    say('#get-msg', '고친 내용으로 다시 만들었습니다.', true);
+    sayDone('고친 내용으로 다시 만들었습니다.');
   } catch (e) {
     say('#get-msg', String((e && e.message) || e));
   } finally {
@@ -1357,7 +1405,7 @@ setupDrop($('#p2-input'), async fs => {
   st.busy = true;
   try {
     await finalize();
-    say('#get-msg', [`사진 ${st.result.photoCount}장을 넣었습니다.`, ...errs], true);
+    sayDone([`사진 ${st.result.photoCount}장을 넣었습니다.`, ...errs].join(' '));
   } catch (e) {
     say('#get-msg', String((e && e.message) || e));
   } finally {
@@ -1372,7 +1420,7 @@ $('#undo').addEventListener('click', async () => {
   try {
     st.result = st.hist.pop();
     await finalize();
-    say('#get-msg', '앞 결과로 되돌렸습니다.', true);
+    sayDone('앞 결과로 되돌렸습니다.');
   } catch (e) {
     say('#get-msg', String((e && e.message) || e));
   } finally {
@@ -1393,10 +1441,11 @@ $('#ask-fix').addEventListener('click', async () => {
     const text = await askAI(await editPrompt(aiCtx(), bodyText(st.result.body), mask(wish)), L, progress(L));
     const body = readAnswer(text, st.frozen.fill, true).body;
     if (!body) throw { code: 'unreadable' };
-    await buildAndShow(body, true, true);
     $('#wish').value = '';
-    say('#get-msg', '고쳤습니다. 미리보기를 확인해 주세요.', true);
+    await buildAndShow(body, true, true);
+    sayDone('고쳤습니다. 미리보기를 확인해 주세요.');
   } catch (e) {
+    if (!$('#wish').value.trim()) $('#wish').value = wish;
     busyOff();
     say('#get-msg', e && e.code === 'unreadable' ? 'AI 답을 읽지 못했습니다. 다시 눌러 주세요.' : (e && e.code ? aiFail(e) : String((e && e.message) || e)));
   } finally {
