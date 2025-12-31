@@ -444,17 +444,46 @@ function renderFacts() {
   $('#f-facts').hidden = false;
 }
 
-$('#to2').addEventListener('click', () => { if (st.form) { go(2); renderPhotos(); renderSend(); waveWhenSeen(); typeDemo(); } });
+$('#to2').addEventListener('click', () => { if (st.form) { go(2); say('#s2-msg', []); paintTo3(false); renderPhotos(); renderSend(); waveWhenSeen(); typeDemo(); } });
 $('#back1').addEventListener('click', () => go(1));
 
 // ------------------------------------------------------------ 2단계: 부탁·자료·사진
+// 부탁 글이 비어 있으면 「다음」은 테두리만, 글이 생기면 주황으로 바뀌어 한 번 번진다(주황은 지금 누를 곳 하나)
+let reqHad = false;
+function paintTo3(ring = true) {
+  const has = !!$('#req').value.trim();
+  $('#to3').classList.toggle('quiet', !has);
+  if (has) say('#s2-msg', []);
+  if (ring && has && !reqHad) replay($('#to3'), 'ring');
+  reqHad = has;
+}
 for (const b of document.querySelectorAll('[data-ex]')) {
-  b.addEventListener('click', () => { $('#req').value = EXAMPLES[Number(b.dataset.ex)]; redetect(); renderSend(); $('#req').focus(); });
+  b.addEventListener('click', () => {
+    $('#req').value = EXAMPLES[Number(b.dataset.ex)];
+    redetect();
+    renderSend();
+    paintTo3();
+    // 휴대폰에서는 칸을 누르지 않는다(자판이 올라와 예시와 「다음」을 가리므로)
+    if (!phone()) $('#req').focus();
+  });
 }
 // 글을 고치면 잠깐 뒤에 가릴 말을 다시 찾는다(부탁 글·사진 설명)
 let reqTimer = null;
 function redetectSoon() { clearTimeout(reqTimer); reqTimer = setTimeout(() => { redetect(); renderSend(); }, 400); }
 $('#req').addEventListener('input', redetectSoon);
+$('#req').addEventListener('input', () => paintTo3());
+// 휴대폰 자판이 올라와 보이는 화면이 4분의 1 넘게 줄면 html에 .kb를 붙인다(「다음」 줄이 글 칸을 가리지 않게 제자리로, index.html .s2-next).
+// 손가락으로 누르는 화면만 보고, 확대해 볼 때는 따지지 않고, 화면을 돌리면 다시 잰다
+if (window.visualViewport && matchMedia('(pointer: coarse)').matches) {
+  const vv = window.visualViewport;
+  let w = innerWidth, full = vv.height;
+  vv.addEventListener('resize', () => {
+    if (innerWidth !== w) { w = innerWidth; full = vv.height; }
+    const zoom = vv.scale > 1.1;
+    if (!zoom) full = Math.max(full, vv.height);
+    document.documentElement.classList.toggle('kb', !zoom && vv.height < full * 0.75);
+  });
+}
 
 const MAT_MAX = 30000, MAT_TOTAL = 60000;
 const MAT_EXT = /\.(hwpx|hwp|txt|md|csv)$/i;
@@ -896,7 +925,14 @@ async function start3() {
   clearTimeout(reqTimer);
   redetect();
   renderSend();
-  if (!$('#req').value.trim()) { say('#s2-msg', '무엇을 쓸지 한두 줄 적어 주세요.'); $('#req').focus(); return; }
+  if (!$('#req').value.trim()) {
+    // 빈칸이면 예시 줄을 노랗게 비추고 그 아래에 안내한다. 휴대폰은 자판이 예시를 가리므로 칸을 누르지 않고 보이게만 굴린다
+    say('#s2-msg', '무엇을 쓸지 한두 줄 적거나, 위 예시 하나를 눌러 보세요.');
+    replay($('#s2 .examples'), 'fresh');
+    reveal($('#s2 .col'));
+    if (!phone()) $('#req').focus({ preventScroll: true });
+    return;
+  }
   say('#s2-msg', []);
   const ai = await currentAI();
   st.busy = true;

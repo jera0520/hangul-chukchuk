@@ -82,7 +82,7 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; background: var(--desk); color: var(--ink); font: 19px/1.65 var(--f-body); padding: 40px 16px 120px; -webkit-text-size-adjust: 100%; word-break: keep-all; overflow-wrap: anywhere; }
-.wrap { max-width: 1160px; margin: 0 auto; display: grid; gap: 34px; background: var(--sheet); padding: 48px 64px 40px; box-shadow: var(--shadow); }
+.wrap { --gut: 64px; max-width: 1160px; margin: 0 auto; display: grid; gap: 34px; background: var(--sheet); padding: 48px var(--gut) 40px; box-shadow: var(--shadow); }
 h1, h2, h3 { margin: 0; text-wrap: balance; }
 h2 { font: 700 26px/1.3 var(--f-display); }
 h3 { font: 700 20px/1.4 var(--f-display); }
@@ -193,6 +193,12 @@ textarea, input[type="text"] { font: 19px/1.6 var(--f-body); color: var(--ink); 
 textarea:focus, input[type="text"]:focus { border-color: var(--navy); outline: none; box-shadow: 0 0 0 3px var(--navy-soft); }
 textarea { resize: vertical; min-height: 9.5em; }
 .examples { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--muted); font-size: 17px; }
+#s2-msg:empty { display: none; }
+/* 「다음」 줄: 사진·자료 칸에 밀려 두 화면 아래에 있어도 화면 아래에 붙어 늘 보인다.
+   휴대폰 자판이 올라오면(app.js가 html에 .kb를 붙임) 글 칸을 가리지 않게 제자리(맨 끝)로 돌아간다 */
+.s2-next { position: sticky; bottom: 0; z-index: 5; margin: 0 calc(-1 * var(--gut)); padding: 12px var(--gut) calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--sheet); border-top: 1px solid var(--line); }
+html.kb .s2-next { position: static; }
+html:has(#s2:not([hidden])) { scroll-padding-bottom: 96px; }
 .files { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .files li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .files .name { font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
@@ -406,7 +412,7 @@ kbd { display: inline-block; font: 600 14px/1 var(--f-body); color: var(--ink); 
 }
 @media (max-width: 720px) {
   body { padding: 0 0 120px; }
-  .wrap { padding: 26px 16px 32px; gap: 28px; box-shadow: none; }
+  .wrap { --gut: 16px; padding: 26px var(--gut) 32px; gap: 28px; box-shadow: none; }
   .title { padding: 14px 4px 12px; }
   .title h1 { font-size: 32px; gap: 10px; }
   .title h1 .fileic { width: 25px; height: 30px; }
@@ -574,6 +580,7 @@ kbd { display: inline-block; font: 600 14px/1 var(--f-body); color: var(--ink); 
         <button type="button" class="link" data-ex="1">운영 계획</button>
         <button type="button" class="link" data-ex="2">일지 칸 채우기</button>
       </p>
+      <div id="s2-msg" class="msg" role="alert"></div>
     </div>
     <div class="block" id="p-block">
       <h3>사진 <span class="opt">선택</span></h3>
@@ -607,11 +614,10 @@ kbd { display: inline-block; font: 600 14px/1 var(--f-body); color: var(--ink); 
       <summary>AI에 가는 글 보기</summary>
       <pre id="send-pre" class="send"></pre>
     </details>
-    <div class="actions">
-      <button type="button" class="btn" id="to3">AI에게 쓰게 하기</button>
-      <button type="button" class="link" id="back1">양식 다시 고르기</button>
+    <p><button type="button" class="link" id="back1">양식 다시 고르기</button></p>
+    <div class="actions s2-next">
+      <button type="button" class="btn quiet" id="to3">AI에게 쓰게 하기</button>
     </div>
-    <div id="s2-msg" class="msg" role="alert"></div>
   </section>
 
   <section data-step="3" id="s3" aria-labelledby="h3s" hidden>
@@ -663,7 +669,7 @@ kbd { display: inline-block; font: 600 14px/1 var(--f-body); color: var(--ink); 
           <ul id="notes" class="notes"></ul>
         </details>
         <p><button type="button" class="link" id="restart">새 문서 만들기</button></p>
-        <p class="s4-fb"><a class="link fb-go" href="https://docs.google.com/forms/d/e/1FAIpQLSed8OdJYOJW6s1ZFraGmRR9eHI6qW9JNtUuokn5z82x0d24-g/viewform" target="_blank" rel="noopener noreferrer" data-entry="932938384" data-ver="1.4">한글 척척 불편한 점 알리기<span class="vh">(새 창)</span></a></p>
+        <p class="s4-fb"><a class="link fb-go" href="https://docs.google.com/forms/d/e/1FAIpQLSed8OdJYOJW6s1ZFraGmRR9eHI6qW9JNtUuokn5z82x0d24-g/viewform" target="_blank" rel="noopener noreferrer" data-entry="932938384" data-ver="1.5">한글 척척 불편한 점 알리기<span class="vh">(새 창)</span></a></p>
       </aside>
     </div>
   </section>
@@ -676,7 +682,7 @@ kbd { display: inline-block; font: 600 14px/1 var(--f-body); color: var(--ink); 
     </div>
     <div class="org-col">
       <h3>쓰다가 안 되거나 불편한 점이 있으면 알려 주세요</h3>
-      <a class="btn quiet fb-go" href="https://docs.google.com/forms/d/e/1FAIpQLSed8OdJYOJW6s1ZFraGmRR9eHI6qW9JNtUuokn5z82x0d24-g/viewform" target="_blank" rel="noopener noreferrer" data-entry="932938384" data-ver="1.4">고칠 점 적기<span class="vh">(새 창)</span><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6.5 3.5h-3v9h9v-3M9.5 2.5h4v4M13.5 2.5 7.5 8.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      <a class="btn quiet fb-go" href="https://docs.google.com/forms/d/e/1FAIpQLSed8OdJYOJW6s1ZFraGmRR9eHI6qW9JNtUuokn5z82x0d24-g/viewform" target="_blank" rel="noopener noreferrer" data-entry="932938384" data-ver="1.5">고칠 점 적기<span class="vh">(새 창)</span><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6.5 3.5h-3v9h9v-3M9.5 2.5h4v4M13.5 2.5 7.5 8.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
       <p class="org-note">문서 내용이나 이름·연락처는 적지 마세요.</p>
     </div>
   </aside>
@@ -686,7 +692,7 @@ kbd { display: inline-block; font: 600 14px/1 var(--f-body); color: var(--ink); 
     <p id="ai-status">AI 연결 확인 중</p>
     <p>한글 파일과 사진은 이 컴퓨터 안에서 만들어집니다. 이 페이지는 이 사이트에서 프로그램과 글꼴을 받고, 다른 곳에는 쓴 횟수만 보냅니다. 다 열린 뒤에는 인터넷을 끊어도 됩니다.</p>
     <p>횟수는 날짜별로 연 횟수·누른 단추·단계·받은 파일 수·들어온 곳(예: 스레드)·휴대폰인지만 셉니다(Cloudflare). 문서 내용·이름·연락처·쿠키는 없고, 추적 거부를 켠 브라우저는 세지 않습니다. GitHub Pages와 Cloudflare는 보안을 위해 접속 기록을 남길 수 있습니다.</p>
-    <p>만든 사람 김진현(AI한술) · 문의 <a href="mailto:impactmarker.marketing@gmail.com">impactmarker.marketing@gmail.com</a> · <a href="licenses.html">사용권</a> · 사이트판 1.4</p>
+    <p>만든 사람 김진현(AI한술) · 문의 <a href="mailto:impactmarker.marketing@gmail.com">impactmarker.marketing@gmail.com</a> · <a href="licenses.html">사용권</a> · 사이트판 1.5</p>
     <p>한컴오피스 한글은 ㈜한글과컴퓨터의 제품이며, 한글 척척은 한글과컴퓨터와 관계가 없습니다.</p>
   </footer>
 </div>
