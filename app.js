@@ -777,21 +777,22 @@ function pasteAsk(prompt, o = {}) {
     box.hidden = false;
     $('#paste-copy').focus();
     const copy = async () => {
-      try {
-        await navigator.clipboard.writeText(prompt);
+      let ok = false;
+      try { await navigator.clipboard.writeText(prompt); ok = true; } catch (e) { ok = oldCopy(prompt); }
+      if (ok) {
         say('#paste-msg', '복사했습니다. 쓰시는 AI의 새 대화에 붙여 넣고 보내 주세요.', true);
         doneFor($('#paste-copy'), '복사했습니다 ✓');
         copied = true;
         psSet(2);
-      } catch (e) {
-        $('#paste-show').open = true;
-        const r = document.createRange();
-        r.selectNodeContents(pre);
-        const sel = getSelection();
-        sel.removeAllRanges();
-        sel.addRange(r);
-        say('#paste-msg', '글을 골라 두었습니다. Ctrl+C(맥은 ⌘+C)를 눌러 복사해 주세요.', true);
+        return;
       }
+      $('#paste-show').open = true;
+      const r = document.createRange();
+      r.selectNodeContents(pre);
+      const sel = getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+      say('#paste-msg', phone() ? '글을 골라 두었습니다. 골라진 글을 길게 눌러 복사해 주세요.' : '글을 골라 두었습니다. Ctrl+C(맥은 ⌘+C)를 눌러 복사해 주세요.', true);
     };
     const okay = () => {
       const t = cleanPasted(inp.value);
@@ -833,6 +834,7 @@ function pasteAsk(prompt, o = {}) {
       box.removeEventListener('keydown', key);
       document.removeEventListener('copy', copiedByKey);
       removeEventListener('focus', back3);
+      removeEventListener('pageshow', back3);
       document.removeEventListener('visibilitychange', back3);
       if (o.signal) o.signal.removeEventListener('abort', stop);
       steps.forEach(li => li.classList.remove('now', 'done'));
@@ -849,9 +851,27 @@ function pasteAsk(prompt, o = {}) {
     box.addEventListener('keydown', key);
     document.addEventListener('copy', copiedByKey);
     addEventListener('focus', back3);
+    // 앞뒤 이동으로 이 화면이 그대로 되살아날 때(뒤로 가기 저장소)도 ③으로
+    addEventListener('pageshow', back3);
     document.addEventListener('visibilitychange', back3);
     if (o.signal) o.signal.addEventListener('abort', stop);
   });
+}
+
+// 옛 방식 복사: 클립보드 API가 막힌 앱 안 브라우저(스레드·인스타 등)에서도 되는 경우가 많다. 누른 자리(포커스)는 되돌린다
+function oldCopy(t) {
+  const back = document.activeElement;
+  const ta = el('textarea', { value: t, readOnly: true, 'aria-hidden': 'true', tabIndex: -1 });
+  ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+  document.body.append(ta);
+  ta.focus({ preventScroll: true });
+  ta.select();
+  ta.setSelectionRange(0, t.length);
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { /* 복사가 막힌 브라우저 */ }
+  ta.remove();
+  if (back && back.focus) back.focus({ preventScroll: true });
+  return ok;
 }
 
 async function freeze() {

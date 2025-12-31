@@ -11,14 +11,13 @@
             : /Macintosh|Mac OS X/.test(ua) ? 'Mac'
               : /CrOS/.test(ua) ? 'ChromeOS'
                 : /Linux/.test(ua) ? 'Linux' : '기타';
-  // 카톡·인스타 등 앱 안에서 연 창은 따로 적는다(파일 받기가 막히는 경우가 많다)
-  const inApp = [[/KAKAOTALK/i, '카카오톡 앱 안'], [/Instagram/, '인스타그램 앱 안'], [/Barcelona/, '스레드 앱 안'], [/NAVER\(inapp/, '네이버 앱 안'], [/FBAN|FBAV/, '페이스북 앱 안']];
+  // 카톡·인스타 등 앱 안에서 연 창은 따로 적는다(파일 받기가 막히는 경우가 많다). 어느 앱인지는 phone.js가 <html data-inapp-name>에 단다
   const browsers = [[/Edg(?:e|A|iOS)?\/(\d+)/, 'Edge'], [/Whale\/(\d+)/, 'Whale'], [/SamsungBrowser\/(\d+)/, 'Samsung'], [/OPR\/(\d+)/, 'Opera'], [/(?:Firefox|FxiOS)\/(\d+)/, 'Firefox'], [/(?:Chrome|CriOS)\/(\d+)/, 'Chrome'], [/Version\/(\d+)[\d.]* (?:Mobile\/\S+ )?Safari\//, 'Safari']];
   const browser = () => {
-    const app = inApp.find(([re]) => re.test(ua));
+    const app = document.documentElement.dataset.inappName;
     const b = browsers.find(([re]) => re.test(ua));
     const name = b ? b[1] + ' ' + ua.match(b[0])[1] : '브라우저 모름';
-    return app ? app[1] + '(' + name + ')' : name;
+    return app ? app + ' 앱 안(' + name + ')' : name;
   };
   const step = () => {
     const s = document.querySelector('section[data-step]:not([hidden])');

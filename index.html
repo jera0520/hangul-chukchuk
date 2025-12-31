@@ -382,7 +382,7 @@ label.drop:focus-visible, label.pick:focus-visible, label.slot:focus-visible { o
 /* 끝난 칸은 작게 접어 지금 칸이 크게 보이게 한다(창이 화면보다 길어지지 않게) */
 .paste-steps > li.done { padding-top: 10px; padding-bottom: 10px; grid-template-columns: 64px minmax(0, 1fr); align-items: center; }
 .paste-steps > li.done .ps-pic { width: 56px; height: 40px; margin-top: 0; }
-.paste-steps > li.done details, .paste-steps > li.done .ai-open { display: none; }
+.paste-steps > li.done details, .paste-steps > li.done .ai-open, .paste-steps > li.done .ai-app { display: none; }
 .ps-pic { width: 96px; height: 70px; color: var(--navy); margin-top: 8px; }
 .ps-body { display: grid; gap: 8px; min-width: 0; }
 .ps-say { font-weight: 600; }
@@ -393,6 +393,12 @@ label.drop:focus-visible, label.pick:focus-visible, label.slot:focus-visible { o
 kbd { display: inline-block; font: 600 14px/1 var(--f-body); color: var(--ink); background: var(--th); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 4px 7px; margin: 0 2px; }
 .ai-open { font-size: 16.5px; color: var(--muted); }
 .ai-open a { color: var(--link); font-weight: 600; }
+/* 스레드·인스타·카톡 등 앱 안 화면(<html data-inapp>, 사이트판 phone.js가 단다): 링크로 연 AI가 이 화면 자리에 열려
+   쓰던 것이 사라질 수 있어 링크를 빼고, AI 앱을 따로 열었다가 이 화면으로 돌아오라고 쓴다 */
+.ai-app, .app-only { display: none; }
+html[data-inapp] .ai-open { display: none; }
+html[data-inapp] .ai-app { display: block; font-size: 16.5px; color: var(--muted); }
+html[data-inapp] .app-only { display: inline; }
 /* 지금 칸의 그림만 한 번 움직인다: 종이가 한 장 더 생기고, 글이 입력칸으로 들어가 보내지고, 복사 단추 뒤 화살표가 내려온다 */
 .paste-steps li.now .copy-sheet { animation: ps-copy 1.4s var(--ease-out) .25s 2 both; }
 @keyframes ps-copy { 0% { transform: none; opacity: 0; } 30% { opacity: 1; } 70%, 100% { transform: translate(14px, 9px); opacity: 1; } }
@@ -466,6 +472,11 @@ kbd { display: inline-block; font: 600 14px/1 var(--f-body); color: var(--ink); 
   .drop-txt { display: flex; align-items: center; gap: 12px; }
   .drop-big { flex: 1; }
   .drop-small { flex: none; }
+  /* 붙여 넣기 창의 Ctrl+V 같은 자판 안내는 휴대폰에서 뺀다 */
+  .keys { display: none; }
+  /* 앱 안 화면이면 1단계 표 맨 아래 「브라우저로 열기」 줄(사이트판 phone.js) */
+  .inapp-tip p:first-child { font-weight: 600; }
+  .inapp-tip .why { font-size: 15.5px; color: var(--muted); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; transition-delay: 0s !important; }
@@ -669,7 +680,7 @@ kbd { display: inline-block; font: 600 14px/1 var(--f-body); color: var(--ink); 
           <ul id="notes" class="notes"></ul>
         </details>
         <p><button type="button" class="link" id="restart">새 문서 만들기</button></p>
-        <p class="s4-fb"><a class="link fb-go" href="https://docs.google.com/forms/d/e/1FAIpQLSed8OdJYOJW6s1ZFraGmRR9eHI6qW9JNtUuokn5z82x0d24-g/viewform" target="_blank" rel="noopener noreferrer" data-entry="932938384" data-ver="1.5">한글 척척 불편한 점 알리기<span class="vh">(새 창)</span></a></p>
+        <p class="s4-fb"><a class="link fb-go" href="https://docs.google.com/forms/d/e/1FAIpQLSed8OdJYOJW6s1ZFraGmRR9eHI6qW9JNtUuokn5z82x0d24-g/viewform" target="_blank" rel="noopener noreferrer" data-entry="932938384" data-ver="1.6">한글 척척 불편한 점 알리기<span class="vh">(새 창)</span></a></p>
       </aside>
     </div>
   </section>
@@ -682,7 +693,7 @@ kbd { display: inline-block; font: 600 14px/1 var(--f-body); color: var(--ink); 
     </div>
     <div class="org-col">
       <h3>쓰다가 안 되거나 불편한 점이 있으면 알려 주세요</h3>
-      <a class="btn quiet fb-go" href="https://docs.google.com/forms/d/e/1FAIpQLSed8OdJYOJW6s1ZFraGmRR9eHI6qW9JNtUuokn5z82x0d24-g/viewform" target="_blank" rel="noopener noreferrer" data-entry="932938384" data-ver="1.5">고칠 점 적기<span class="vh">(새 창)</span><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6.5 3.5h-3v9h9v-3M9.5 2.5h4v4M13.5 2.5 7.5 8.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      <a class="btn quiet fb-go" href="https://docs.google.com/forms/d/e/1FAIpQLSed8OdJYOJW6s1ZFraGmRR9eHI6qW9JNtUuokn5z82x0d24-g/viewform" target="_blank" rel="noopener noreferrer" data-entry="932938384" data-ver="1.6">고칠 점 적기<span class="vh">(새 창)</span><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6.5 3.5h-3v9h9v-3M9.5 2.5h4v4M13.5 2.5 7.5 8.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
       <p class="org-note">문서 내용이나 이름·연락처는 적지 마세요.</p>
     </div>
   </aside>
@@ -692,7 +703,7 @@ kbd { display: inline-block; font: 600 14px/1 var(--f-body); color: var(--ink); 
     <p id="ai-status">AI 연결 확인 중</p>
     <p>한글 파일과 사진은 이 컴퓨터 안에서 만들어집니다. 이 페이지는 이 사이트에서 프로그램과 글꼴을 받고, 다른 곳에는 쓴 횟수만 보냅니다. 다 열린 뒤에는 인터넷을 끊어도 됩니다.</p>
     <p>횟수는 날짜별로 연 횟수·누른 단추·단계·받은 파일 수·들어온 곳(예: 스레드)·휴대폰인지만 셉니다(Cloudflare). 문서 내용·이름·연락처·쿠키는 없고, 추적 거부를 켠 브라우저는 세지 않습니다. GitHub Pages와 Cloudflare는 보안을 위해 접속 기록을 남길 수 있습니다.</p>
-    <p>만든 사람 김진현(AI한술) · 문의 <a href="mailto:impactmarker.marketing@gmail.com">impactmarker.marketing@gmail.com</a> · <a href="licenses.html">사용권</a> · 사이트판 1.5</p>
+    <p>만든 사람 김진현(AI한술) · 문의 <a href="mailto:impactmarker.marketing@gmail.com">impactmarker.marketing@gmail.com</a> · <a href="licenses.html">사용권</a> · 사이트판 1.6</p>
     <p>한컴오피스 한글은 ㈜한글과컴퓨터의 제품이며, 한글 척척은 한글과컴퓨터와 관계가 없습니다.</p>
   </footer>
 </div>
@@ -723,8 +734,9 @@ kbd { display: inline-block; font: 600 14px/1 var(--f-body); color: var(--ink); 
           <circle class="mv chat-send" cx="70.5" cy="47.5" r="3.6" fill="var(--accent)"/>
         </svg>
         <div class="ps-body">
-          <p class="ps-say">쓰시는 AI의 <b>새 대화</b>에 붙여 넣고 보내기 <span class="keys"><kbd class="k-mod">Ctrl</kbd>+<kbd>V</kbd></span></p>
+          <p class="ps-say">쓰시는 AI<span class="app-only"> 앱</span>의 <b>새 대화</b>에 붙여 넣고 보내기 <span class="keys"><kbd class="k-mod">Ctrl</kbd>+<kbd>V</kbd></span></p>
           <p class="ai-open">열기: <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">ChatGPT</a> · <a href="https://gemini.google.com/app" target="_blank" rel="noopener noreferrer">Gemini</a> · <a href="https://claude.ai/new" target="_blank" rel="noopener noreferrer">Claude</a></p>
+          <p class="ai-app">이 화면은 닫지 말고, 답을 받으면 <span class="app-back">이 앱으로</span> 돌아오기</p>
         </div>
       </li>
       <li>

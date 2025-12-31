@@ -1,6 +1,6 @@
 // 사이트판에만: 쓴 횟수 세기. 세는 곳은 김진현 Cloudflare 계정의 작은 집계 프로그램(counter/, 주소는 <meta name="hc-count">)이다.
-// 보내는 것은 일 이름 하나(열어 봄·휴대폰에서 열어 봄·누른 단추·양식 읽기 끝/실패·단계·부탁 글을 적기 시작함·붙여 넣기 창에서 한 일·결과·받기·고쳐 달라고 함 등)와,
-// 열 때는 들어온 곳의 주소 이름(예: www.threads.com), 그 밖의 일에는 휴대폰이면 붙이는 |m 표시뿐이다. 문서 내용·파일 이름·이름·연락처는 보내지 않고 쿠키도 쓰지 않는다.
+// 보내는 것은 일 이름 하나(열어 봄·휴대폰에서 열어 봄·앱 안 화면으로 열어 봄·누른 단추·양식 읽기 끝/실패·단계·부탁 글을 적기 시작함·붙여 넣기 창에서 한 일·결과·받기·고쳐 달라고 함 등)와,
+// 열 때는 들어온 곳의 주소 이름(예: www.threads.com), 앱 안 화면이면 앱 이름(예: threads), 그 밖의 일에는 휴대폰이면 붙이는 |m 표시뿐이다. 문서 내용·파일 이름·이름·연락처는 보내지 않고 쿠키도 쓰지 않는다.
 // 이 사이트 주소가 아니거나(시험판), 자동 시험 브라우저이거나, 추적 거부(GPC·Do Not Track)를 켠 브라우저에서는 보내지 않는다.
 (() => {
   const meta = document.querySelector('meta[name="hc-count"]');
@@ -32,6 +32,9 @@
   };
   send('open|' + from());
   if (mobile) hit('phone');
+  // 스레드·인스타·카톡 등 앱 안 화면(phone.js가 <html data-inapp>에 앱 이름을 단다)
+  const inapp = document.documentElement.dataset.inapp;
+  if (inapp) send('inapp|' + inapp);
 
   // 단계: 1→2(「다음」 누름), 3→4(결과 나옴). 붙여 넣기 창: 3단계에서는 문서마다 처음 한 번, 4단계에서 열리면 「고쳐 달라고 함」
   const secs = [...document.querySelectorAll('section[data-step]')];
@@ -53,12 +56,26 @@
       if (now() === 4) hit('fix');
       else one('paste');
     }).observe(paste, { attributes: true, attributeFilter: ['hidden'] });
-    // 3단계 붙여 넣기 창에서: AI 답을 붙여 넣음, 답에서 쓸 곳을 못 찾아 안내가 뜸, Esc로 그만둠(글 복사·AI 열기·그만두기 단추는 아래 CLICKS)
+    // 3단계 붙여 넣기 창에서: AI 답을 붙여 넣음, 답에서 쓸 곳을 못 찾아 안내가 뜸, 글 복사가 막혀 직접 복사하라는 안내가 뜸, Esc로 그만둠(글 복사·AI 열기·그만두기 단추는 아래 CLICKS)
     const pin = document.getElementById('paste-in');
     if (pin) pin.addEventListener('input', () => { if (in3() && pin.value.trim()) one('paste_in'); });
     const pmsg = document.getElementById('paste-msg');
-    if (pmsg) new MutationObserver(() => { if (in3() && /찾지 못했습니다|줄바꿈이 사라진/.test(pmsg.textContent)) one('paste_bad'); }).observe(pmsg, { childList: true });
+    if (pmsg) new MutationObserver(() => {
+      if (!in3()) return;
+      if (/찾지 못했습니다|줄바꿈이 사라진/.test(pmsg.textContent)) one('paste_bad');
+      if (/골라 두었습니다/.test(pmsg.textContent)) one('paste_copy_err');
+    }).observe(pmsg, { childList: true });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && in3()) one('paste_cancel'); }, true);
+    // 붙여 넣기 창을 연 채로 다른 앱·창으로 갔다가(paste_leave) 이 화면으로 돌아옴(paste_back).
+    // 앱 안 화면에서 AI 앱에 다녀온 뒤에도 이 화면이 남아 있는지 보려고 센다(사라졌으면 돌아옴 없이 처음부터 다시 열림)
+    let away = false;
+    const leave = () => { if (in3() && !away) { away = true; one('paste_leave'); } };
+    const back = () => { if (in3() && away && document.visibilityState === 'visible') { away = false; one('paste_back'); } };
+    document.addEventListener('visibilitychange', () => (document.visibilityState === 'hidden' ? leave : back)());
+    addEventListener('blur', leave);
+    addEventListener('pagehide', leave);
+    addEventListener('focus', back);
+    addEventListener('pageshow', back);
   }
   // 3단계에 오류 글이 뜸(사람이 멈춘 「멈췄습니다」는 빼고)
   const s3msg = document.getElementById('s3-msg');

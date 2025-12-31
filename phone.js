@@ -2,7 +2,24 @@
 // 휴대폰에는 한글 양식이 거의 없고 보고서도 컴퓨터에서 쓰므로, 지금 주소를 내게 보내 두고 컴퓨터에서 이어 쓰게 한다.
 // 누르면 휴대폰 공유 창(카톡 나와의 채팅·메일·에어드롭 등)을 열고, 공유 창이 없는 앱 안 브라우저에서는 주소를 복사한다.
 // 휴대폰인지는 app.js의 phone()과 같은 조건(손가락으로만 누르는 좁은 화면)으로 본다.
+// 스레드·인스타·카톡 등 앱 안 화면이면 <html data-inapp="threads"> 등을 단다(index.html 붙여 넣기 창 안내, org.js 설문 사용 환경, stats.js 세기가 함께 본다).
+// 앱 안 화면은 링크로 연 다른 사이트가 이 화면 자리에 열리거나 파일 받기가 막히기도 해서, 휴대폰이면 표에 「브라우저로 열기」 줄도 더한다.
 (() => {
+  // [이름표, 열쇠, 이름, 돌아올 곳(…로), 브라우저로 여는 메뉴 자리]. 메타 앱(스레드·인스타·페이스북)은 오른쪽 위에 ⋯가 있다
+  const INAPP = [
+    [/Barcelona/, 'threads', '스레드', '스레드로', '오른쪽 위 ⋯'],
+    [/Instagram/, 'instagram', '인스타그램', '인스타그램으로', '오른쪽 위 ⋯'],
+    [/FBAN|FBAV|FB_IAB/, 'facebook', '페이스북', '페이스북으로', '오른쪽 위 ⋯'],
+    [/KAKAOTALK/i, 'kakaotalk', '카카오톡', '카카오톡으로', '⋯ 메뉴'],
+    [/NAVER\(inapp/, 'naver', '네이버', '네이버 앱으로', '⋯ 메뉴'],
+  ];
+  const app = INAPP.find(([re]) => re.test(navigator.userAgent));
+  if (app) {
+    document.documentElement.dataset.inapp = app[1];
+    document.documentElement.dataset.inappName = app[2];
+    for (const e of document.querySelectorAll('.app-back')) e.textContent = app[3];
+  }
+
   const tbl = document.querySelector('#s1 .tbl');
   if (!tbl || !matchMedia('(hover: none) and (pointer: coarse) and (max-width: 600px)').matches) return;
   const url = location.origin + location.pathname;
@@ -13,6 +30,11 @@
   const td = mk('div', { className: 'td' });
   td.append(btn, msg);
   tbl.append(mk('div', { className: 'th', textContent: '휴대폰이면' }), td);
+  if (app) {
+    const tip = mk('div', { className: 'td inapp-tip', id: 'inapp-tip' });
+    tip.append(mk('p', { textContent: app[4] + ' → 브라우저로 열기' }), mk('p', { className: 'why', textContent: '앱 안 화면은 파일 받기가 막힐 수 있어요' }));
+    tbl.append(mk('div', { className: 'th', textContent: app[2] + '에서 열었으면' }), tip);
+  }
 
   const say = (...lines) => {
     msg.replaceChildren(...lines.map(t => mk('p', { className: 'ok', textContent: t })));
