@@ -946,9 +946,17 @@ async function start3() {
   redetect();
   renderSend();
   if (!$('#req').value.trim()) {
-    // 빈칸이면 예시 줄을 노랗게 비추고 그 아래에 안내한다. 휴대폰은 자판이 예시를 가리므로 칸을 누르지 않고 보이게만 굴린다
-    say('#s2-msg', '무엇을 쓸지 한두 줄 적거나, 위 예시 하나를 눌러 보세요.');
-    replay($('#s2 .examples'), 'fresh');
+    // 빈칸이면 꾸짖는 빨간 글 대신 차분한 안내와 「예시로 해 보기」 단추를 낸다(누르면 첫 예시를 넣고 바로 다음으로).
+    // 휴대폰에서 글을 적기 번거로운 사람이 빈칸 안내만 보고 나가던 곳이다. 또 누르면 단추가 한 번 번진다.
+    // 휴대폰은 자판이 예시를 가리므로 칸을 누르지 않고 보이게만 굴린다
+    let go = $('#ex-go');
+    if (!go) {
+      go = el('button', { type: 'button', class: 'btn', id: 'ex-go', text: '예시로 해 보기' });
+      go.addEventListener('click', () => { $('#req').value = EXAMPLES[0]; paintTo3(false); start3(); });
+      $('#s2-msg').replaceChildren(el('p', { class: 'tip', text: '무엇을 쓸지 한두 줄 적어 주세요. 처음이면 예시로 먼저 해 봐도 됩니다.' }), go);
+      replay($('#s2 .examples'), 'fresh');
+    }
+    replay(go, 'ring');
     reveal($('#s2 .col'));
     if (!phone()) $('#req').focus({ preventScroll: true });
     return;

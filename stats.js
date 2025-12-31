@@ -124,7 +124,7 @@
   const CLICKS = [
     ['#f-input', 'up_tap'], ['#f-default', 'pick_default'], ['#pc-send', 'pc_send'], ['#get-hwpx', 'dl_hwpx'], ['#get-hwp', 'dl_hwp'],
     ['#howto-open', 'howto'], ['#org-copy', 'org'], ['#org-mail', 'org'], ['a.fb-go', 'survey'],
-    ['#req', 'req_tap', 1], ['[data-ex]', 'req_ex', 1], ['#make', 'q_make', 1],
+    ['#req', 'req_tap', 1], ['[data-ex]', 'req_ex', 1], ['#ex-go', 'ex_go', 1], ['#make', 'q_make', 1],
     ['#paste-copy', 'paste_copy', 3], ['.ai-open a', 'paste_ai', 3], ['#paste-cancel', 'paste_cancel', 3],
   ];
   document.addEventListener('click', e => {
