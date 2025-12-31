@@ -157,8 +157,8 @@ engineP.then(() => {
   $('#eng-status').textContent = '한글 엔진을 불러오지 못했습니다. 페이지를 새로 열어 주세요. (' + (e && e.message) + ')';
 });
 let engQ = Promise.resolve();
-function eng(argv, files, outs) {
-  const p = engQ.then(() => engineP).then(() => runEngine(argv, files, outs));
+function eng(argv, files, outs, mod) {
+  const p = engQ.then(() => engineP).then(() => runEngine(argv, files, outs, mod));
   engQ = p.catch(() => {});
   return p;
 }
@@ -386,8 +386,22 @@ async function analyze(maskedBytes, wantSlots) {
   const analysis = r.log.split(/\n- 개요 파일:/)[0].trim();
   const fill = /서식형 문서입니다/.test(analysis);
   let slots = '';
-  if (wantSlots === undefined ? fill : wantSlots) slots = (await eng(['slots', '/w/f.hwpx'], { 'f.hwpx': maskedBytes }, [])).log;
-  return { analysis, outline0: DEC.decode(r.files['o.txt']), fill, slots };
+  const cover = {};
+  if (wantSlots === undefined ? fill : wantSlots) {
+    slots = (await eng(['slots', '/w/f.hwpx'], { 'f.hwpx': maskedBytes }, [])).log;
+    // 제출 문구·날짜·서명란 칸(…제출합니다 / 년 월 일 / (서명 또는 인) / ○○장 귀하)은 칸 목록에 줄 전체를 보여 주고 줄 수를 적는다.
+    // 목록은 칸 글자를 60자에서 자르므로 AI가 뒤쪽 줄(첨부 서류·귀하)을 모르고 칸을 통째로 다시 써서 줄이 사라졌다
+    const cv = await eng(['cover', '/w/f.hwpx'], { 'f.hwpx': maskedBytes }, [], 'extra');
+    if (cv.code === 0) {
+      for (const line of cv.log.split('\n')) {
+        const [k, n, text] = line.split('\t');
+        if (!text || !/^T\d+\.\d+\.\d+$/.test(k)) continue;
+        cover[k] = +n;
+        slots = slots.replace(new RegExp('^' + k.replace(/\./g, '\\.') + ' .*$', 'm'), (k + ' ').padEnd(11) + `[제출 문구·서명란 ${n}줄] ` + text);
+      }
+    }
+  }
+  return { analysis, outline0: DEC.decode(r.files['o.txt']), fill, slots, cover };
 }
 
 function cleanLog(log) {
@@ -805,7 +819,7 @@ async function freeze() {
   const analysis = fill ? an.analysis : an.analysis.split('\n').filter(l => !/서식형 문서입니다/.test(l)).join('\n');
   const mask = t => HG.maskText(t || '', on);
   st.frozen = {
-    on: on.slice(), map: Object.assign({}, map), formBytes, analysis, outline0: an.outline0, slots: an.slots, fill,
+    on: on.slice(), map: Object.assign({}, map), formBytes, analysis, outline0: an.outline0, slots: an.slots, cover: an.cover || {}, fill,
     request: mask($('#req').value),
     mats: st.mats.map(m => ({ name: mask(m.name), text: mask(m.text) })),
     photoCaps: st.photos.map(p => mask(p.caption.trim())),
@@ -1025,12 +1039,37 @@ async function make() {
 // ------------------------------------------------------------ 만들기
 const bodyText = body => (st.frozen.fill ? JSON.stringify(body, null, 1) : String(body));
 
+// 칸 채우기 값에서 양식을 망가뜨리는 것을 뺀다.
+// - AI가 사진과 상관없는 칸(사업명 칸 등)에 [사진]을 쓰면 그 작은 칸에 사진이 들어간다. 칸 목록 줄(칸 글자·이웃 칸 힌트)에
+//   '사진'이 없는 칸의 [사진]은 뺀다. 사진 칸이 없으면 사진은 끝 '붙임 사진' 쪽으로 간다(finalize).
+// - 제출 문구·서명란 칸은 줄 수가 원래와 같을 때만 넣는다(줄을 빼고 다시 쓰면 첨부 서류·서명란·귀하 줄이 사라진다).
+const PHOTO_VAL = /^\s*\[\s*사진\s*\d*\s*\]\s*$/;
+function safeBody(body) {
+  const f = st.frozen;
+  if (!f.fill || !body || typeof body !== 'object') return body;
+  const ok = new Set();
+  for (const line of f.slots.split('\n')) {
+    const m = line.match(/^(T\d+\.\d+\.\d+|P\d+)\s+(.*)$/);
+    if (m && /사진/.test(m[2])) ok.add(m[1]);
+  }
+  const cover = f.cover || {};
+  const lines = v => String(v ?? '').split('\n').filter(x => x.trim()).length;
+  const out = {};
+  for (const [k, v] of Object.entries(body)) {
+    if (!ok.has(k) && PHOTO_VAL.test(String(v ?? ''))) continue;
+    if (cover[k] && lines(v) !== cover[k]) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 async function buildOnce(body) {
   const f = st.frozen;
+  body = safeBody(body);
   const r = f.fill
     ? await eng(['fill', '/w/f.hwpx', '/w/v.json', '-o', '/w/r.hwpx'], { 'f.hwpx': f.formBytes, 'v.json': ENC.encode(JSON.stringify(body)) }, ['r.hwpx'])
     : await eng(['build', '/w/f.hwpx', '/w/o.txt', '-o', '/w/r.hwpx'], { 'f.hwpx': f.formBytes, 'o.txt': ENC.encode(String(body)) }, ['r.hwpx']);
-  return { code: r.code, log: r.log, bytes: r.code === 0 ? r.files['r.hwpx'] : null };
+  return { code: r.code, log: r.log, bytes: r.code === 0 ? r.files['r.hwpx'] : null, body };
 }
 
 const needsFix = log => /찾지 못했습니다|옛 연도가 그대로 남아|자리표시/.test(log || '');
@@ -1038,6 +1077,7 @@ const needsFix = log => /찾지 못했습니다|옛 연도가 그대로 남아|�
 async function buildAndShow(body, allowFix, keep) {
   busyOn('한글 파일을 만드는 중');
   let r = await buildOnce(body);
+  body = r.body;
   if (!r.bytes) throw new Error('한글 파일을 만들지 못했습니다. ' + (cleanLog(r.log) || '[다시 하기]를 눌러 주세요.'));
   // 붙여 넣기로 쓸 때는 창을 또 띄우지 않는다(점검 결과는 아래 '참고'와 채울 곳에 보인다)
   if (allowFix && needsFix(r.log) && !isPaste()) {
@@ -1048,7 +1088,7 @@ async function buildAndShow(body, allowFix, keep) {
       if (b2) {
         busyOn('한글 파일을 다시 만드는 중');
         const r2 = await buildOnce(b2);
-        if (r2.bytes) { r = r2; body = b2; }
+        if (r2.bytes) { r = r2; body = r2.body; }
       }
     } catch (e) { /* 고치기에 실패하면 처음 만든 것을 그대로 보여 준다 */ }
   }
@@ -1103,6 +1143,19 @@ async function finalize() {
   res.slotCount = slots.length;
   res.photoCount = 0;
   res.photoNote = '';
+  let page = false;
+  // 사진 칸이 없는 양식(법정 서식 등)이면 문서 끝에 '붙임 사진' 쪽(사진 2장씩, 설명이 있으면 아래 줄에)을 붙여 거기에 넣는다
+  if (st.photos.length && !slots.length) {
+    busyText('붙임 사진 쪽을 만드는 중');
+    const caps = ENC.encode(JSON.stringify(st.photos.map(p => p.caption.trim())));
+    const r = await eng(['photos', '/w/a.hwpx', '/w/c.json', '-o', '/w/b.hwpx'], { 'a.hwpx': bytes, 'c.json': caps }, ['b.hwpx'], 'extra');
+    if (r.code === 0 && r.files['b.hwpx']) {
+      bytes = r.files['b.hwpx'];
+      doc = await HG.openHwpx('r.hwpx', bytes);
+      slots = await HG.photoSlots(doc);
+      page = slots.length > 0;
+    }
+  }
   if (st.photos.length && slots.length) {
     if (slots.length !== st.photos.length) {
       const fit = await HG.fitPhotoSlots(doc, st.photos.length);
@@ -1117,7 +1170,8 @@ async function finalize() {
     if (ins.bytes) bytes = ins.bytes;
     res.photoCount = ins.count;
     res.slotCount = slots.length;
-    if (st.photos.length > slots.length) res.photoNote = `사진 칸이 ${slots.length}곳뿐이라 사진 ${st.photos.length - slots.length}장은 넣지 못했습니다.`;
+    if (page) res.photoNote = '양식에 사진 칸이 없어 사진은 마지막 쪽 「붙임 사진」에 넣었습니다.';
+    else if (st.photos.length > slots.length) res.photoNote = `사진 칸이 ${slots.length}곳뿐이라 사진 ${st.photos.length - slots.length}장은 넣지 못했습니다.`;
     else if (slots.length > st.photos.length) res.photoNote = `사진 칸 ${slots.length - st.photos.length}곳은 비어 있습니다. 한글에서 지우거나 사진을 넣어 주세요.`;
   } else if (st.photos.length) {
     res.photoNote = '문서에 사진 칸이 없어 사진을 넣지 못했습니다. 아래 "AI에게 고쳐 달라고 하기"에 "사진 표를 넣어 줘"라고 적어 보세요.';
@@ -1156,18 +1210,50 @@ function docTitle() {
 function holes() {
   const f = st.frozen, res = st.result, back = t => HG.restoreText(t, f.map).text;
   if (f.fill) {
-    const out = [];
-    const seen = new Set();
+    // 칸 목록을 줄(표 번호.행)마다 묶는다. T2.5.1 → 줄 T2.5, 문단 칸(P3)은 혼자 한 줄
+    const rows = new Map();
     for (const line of f.slots.split('\n')) {
-      const m = line.match(/^(T\d+\.\d+\.\d+|P\d+)\s+\(빈칸\)\s*(?:←\s*(.+))?$/);
+      const m = line.match(/^(T(\d+)\.(\d+)\.(\d+)|P\d+)\s+(.*)$/);
       if (!m) continue;
-      seen.add(m[1]);
-      const v = res.body[m[1]] ? back(String(res.body[m[1]])) : '';
-      // 빈칸으로 남았거나 ○○인 칸만(채운 칸은 미리보기에서 보고, 고칠 게 있으면 AI에게 부탁)
-      if (!v.trim() || /○○/.test(v)) out.push({ key: m[1], label: (m[2] || m[1]).split(' / ')[0], value: v });
+      const blank = /^\(빈칸\)/.test(m[5]);
+      const rk = m[2] ? 'T' + m[2] + '.' + m[3] : m[1];
+      if (!rows.has(rk)) rows.set(rk, []);
+      rows.get(rk).push({ key: m[1], col: m[4] ? +m[4] : 0, blank, hint: blank ? ((m[5].match(/←\s*(.+)$/) || [])[1] || '') : '', text: blank ? '' : m[5] });
+    }
+    // 칸 이름은 사람이 읽는 말로: '사 업 명' → '사업명', 'A / B' → 'A B', 긴 글은 앞만
+    const tidy = t => {
+      const o = [];
+      let run = false;
+      for (const x of String(t).replace(/\s*\/\s*/g, ' ').trim().split(/\s+/)) {
+        const one = /^[가-힣]$/.test(x);
+        if (one && run) o[o.length - 1] += x; else o.push(x);
+        run = one;
+      }
+      const s = o.join(' ');
+      return s.length > 18 ? s.slice(0, 17) + '…' : s;
+    };
+    const val = k => res.body[k] != null ? back(String(res.body[k])) : '';
+    const NA = /^(해당\s*(사항\s*)?없음|없음|[-–—])$/;
+    const out = [], seen = new Set();
+    for (const row of rows.values()) {
+      const blanks = row.filter(c => c.blank);
+      const filledBlank = blanks.some(c => val(c.key).trim());
+      const rowNA = row.some(c => NA.test(val(c.key).trim()));
+      // 이름표 칸 옆에 빈칸이 한두 개인 줄(교부 결정일 | 빈칸 같은 것)
+      const labelRow = blanks.length <= 2 && row.some(c => !c.blank);
+      for (const c of row) {
+        seen.add(c.key);
+        const v = val(c.key);
+        const left = row.filter(x => !x.blank && x.col < c.col).pop();
+        const label = /^\[제출 문구·서명란/.test(c.text) ? '제출 문구·서명란' : tidy(c.blank ? (c.hint.split(' / ')[0] || '') : left ? left.text : c.text);
+        if (/○○/.test(v)) out.push({ key: c.key, label, value: v });
+        // 비어 남은 칸은 이름표 옆 빈칸이거나 AI가 같은 줄을 일부 채운 줄만 묻는다.
+        // 통째로 빈 줄(남는 줄)이나 '해당 없음'이라고 쓴 줄은 쓰지 않는 줄로 본다.
+        else if (c.blank && !v.trim() && !rowNA && (labelRow || filledBlank || c.key[0] === 'P')) out.push({ key: c.key, label, value: v });
+      }
     }
     for (const [k, v] of Object.entries(res.body)) {
-      if (!seen.has(k) && /○○/.test(String(v))) out.push({ key: k, label: k, value: back(String(v)) });
+      if (!seen.has(k) && /○○/.test(String(v))) out.push({ key: k, label: '', value: back(String(v)) });
     }
     return out;
   }
@@ -1250,7 +1336,7 @@ $('#refill').addEventListener('click', async () => {
     const r = await buildOnce(body);
     if (!r.bytes) throw new Error(cleanLog(r.log) || '다시 만들지 못했습니다.');
     keepPrev();
-    st.result = { body, built: r.bytes, log: r.log };
+    st.result = { body: r.body, built: r.bytes, log: r.log };
     await finalize();
     say('#get-msg', '고친 내용으로 다시 만들었습니다.', true);
   } catch (e) {
