@@ -66,10 +66,15 @@
       if (/골라 두었습니다/.test(pmsg.textContent)) one('paste_copy_err');
     }).observe(pmsg, { childList: true });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && in3()) one('paste_cancel'); }, true);
-    // 붙여 넣기 창을 연 채로 다른 앱·창으로 갔다가(paste_leave) 이 화면으로 돌아옴(paste_back).
+    // 붙여 넣기 창을 연 채로 다른 앱·창으로 갔다가(paste_leave, 복사 전이면 paste_quit도) 이 화면으로 돌아옴(paste_back).
     // 앱 안 화면에서 AI 앱에 다녀온 뒤에도 이 화면이 남아 있는지 보려고 센다(사라졌으면 돌아옴 없이 처음부터 다시 열림)
+    // 복사가 됐는지(②가 켜짐)는 단추·Ctrl+C·길게 눌러 복사 어느 길이든 같은 표시로 본다(paste_copy는 단추만 셈)
+    const ps = [...paste.querySelectorAll('.paste-steps > li')];
+    const past1 = () => ps.slice(1).some(li => li.classList.contains('now') || li.classList.contains('done'));
+    if (ps[1]) new MutationObserver(() => { if (in3() && ps[1].classList.contains('now')) one('paste_copied'); }).observe(ps[1], { attributes: true, attributeFilter: ['class'] });
     let away = false;
-    const leave = () => { if (in3() && !away) { away = true; one('paste_leave'); } };
+    // 복사도 하기 전에 화면을 떠남(창을 닫거나 다른 앱으로 감) = paste_quit, 떠남 자체는 늘 paste_leave
+    const leave = () => { if (in3() && !away) { away = true; if (!past1()) one('paste_quit'); one('paste_leave'); } };
     const back = () => { if (in3() && away && document.visibilityState === 'visible') { away = false; one('paste_back'); } };
     document.addEventListener('visibilitychange', () => (document.visibilityState === 'hidden' ? leave : back)());
     addEventListener('blur', leave);
