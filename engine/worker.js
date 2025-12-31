@@ -1,94 +1,85 @@
-/* 한글 엔진 일꾼: 브라우저 안 파이썬(Pyodide)에서 hwpdoc.py를 돌린다. 문서는 이 컴퓨터 밖으로 나가지 않는다. */
-let ready = null;
-// 진행 단계와 보안 정책 차단을 화면에 알린다(문제 찾기용).
-const T0 = performance.now();
-const sec = () => ((performance.now() - T0) / 1000).toFixed(1) + '초';
-function stage(text) { self.postMessage({ stage: text + ' ' + sec() }); }
-self.addEventListener('securitypolicyviolation', (e) => stage('차단: ' + e.violatedDirective + ' ' + (e.blockedURI || '')));
-self.addEventListener('error', (e) => stage('오류: ' + e.message));
-self.addEventListener('unhandledrejection', (e) => stage('놓친 오류: ' + ((e.reason && e.reason.message) || e.reason)));
-// 살아 있는지 알리는 신호: 이게 멈추면 일꾼이 파이썬 안에서 묶여 있는 것이다.
-setInterval(() => self.postMessage({ beat: sec() }), 2000);
+/* 한글 엔진 일꾼(사이트판): 브라우저 안 파이썬(Pyodide)에서 hwpdoc.py·extra.py를 돌린다. 문서는 이 컴퓨터 밖으로 나가지 않는다.
+ * 페이지 쪽은 engine.js. 하는 일은 claude.ai판 app/engine/engine.js와 같고, 화면을 멈추지 않으려고 여기서 돌린다.
+ */
 const LXML = 'lxml-6.0.2-cp313-cp313-pyemscripten_2025_0_wasm32.whl';
+const LIB = new URL('../lib/', self.location.href).href;
+const T0 = performance.now();
+const stage = t => self.postMessage({ stage: t + ' ' + ((performance.now() - T0) / 1000).toFixed(1) + '초' });
+let ready = null;
 
-// 클로드 페이지는 압축 파일(.zip·.whl)을 그대로 못 올려서 글자(base64)로 올린다. 파이썬이 그 파일을 달라고 하면 풀어서 건넨다.
-const realFetch = self.fetch.bind(self);
-async function fromB64(url) {
-  const text = await (await realFetch(url + '.b64.txt')).text();
+function b64ToBytes(text) {
   const bin = atob(text.replace(/\s+/g, ''));
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
-self.fetch = async (input, init) => {
-  const url = typeof input === 'string' ? input : (input.href || input.url || String(input));
-  const name = url.split('/').pop().slice(0, 24);
-  stage('받기 ' + name);
-  if (/(python_stdlib\.zip|\.whl)$/.test(url)) {
-    const r = new Response(await fromB64(url), { headers: { 'content-type': 'application/zip' } });
-    stage('받음 ' + name);
-    return r;
-  }
-  const r = await realFetch(input, init);
-  stage('받음 ' + name + ' ' + r.status);
-  return r;
-};
 
 function boot() {
   if (ready) return ready;
   ready = (async () => {
-    const lib = new URL('../lib/', self.location.href).href;
-    stage('일꾼 시작');
-    importScripts(lib + 'pyodide/pyodide.js');
-    stage('파이썬 불러오는 중');
-    const py = await loadPyodide({ indexURL: lib + 'pyodide/', stdout: (t) => stage('출력 ' + t.slice(0, 60)), stderr: (t) => stage('경고 ' + t.slice(0, 60)) });
-    stage('파이썬 준비 끝');
-    stage('lxml 불러오는 중');
-    await py.loadPackage(lib + 'wheels/' + LXML);
-    stage('엔진 받는 중');
-    const resp = await fetch(new URL('hwpdoc.py', self.location.href));
-    const src = await resp.text();
-    stage('엔진 받음 ' + resp.status + ' ' + src.length + '자');
-    py.FS.writeFile('/hwpdoc.py', src);
-    py.runPython("import sys\nsys.path.insert(0, '/')");
-    py.runPython('import lxml.etree');
-    stage('lxml 열림');
-    py.runPython('import hwpdoc');
-    stage('엔진 열림');
-    return py;
+    // 압축 파일(.zip·.whl)은 글자(base64)로 올려 두었다(claude.ai판과 같은 lib/). 파이썬이 그 파일을 달라고 하면 풀어서 건넨다.
+    const realFetch = self.fetch.bind(self);
+    self.fetch = async (input, init) => {
+      const url = typeof input === 'string' ? input : (input.href || input.url || String(input));
+      if (/(python_stdlib\.zip|\.whl)$/.test(url)) {
+        const text = await (await realFetch(url + '.b64.txt')).text();
+        return new Response(b64ToBytes(text), { headers: { 'content-type': 'application/zip' } });
+      }
+      return realFetch(input, init);
+    };
+    try {
+      stage('파이썬 불러오는 중');
+      importScripts(LIB + 'pyodide/pyodide.js');
+      const py = await loadPyodide({ indexURL: LIB + 'pyodide/' });
+      stage('lxml 불러오는 중');
+      await py.loadPackage(LIB + 'wheels/' + LXML);
+      stage('엔진 불러오는 중');
+      py.FS.writeFile('/hwpdoc.py', await (await realFetch(new URL('hwpdoc.py', self.location.href))).text());
+      // 엔진 도우미(붙임 사진 쪽·서명란 칸 찾기). 인터넷이 끊겨도 쓰게 처음에 같이 받는다
+      py.FS.writeFile('/extra.py', await (await realFetch(new URL('extra.py', self.location.href))).text());
+      py.runPython("import sys\nsys.path.insert(0, '/')\nimport hwpdoc");
+      try { py.FS.mkdir('/w'); } catch (e) { /* 이미 있음 */ }
+      stage('준비 끝');
+      return py;
+    } finally {
+      self.fetch = realFetch;
+    }
   })();
+  ready.catch(() => { ready = null; });
   return ready;
 }
 
-// 엔진 명령 하나를 돌리고 화면에 찍힌 글과 만들어진 파일을 돌려준다.
-async function run(py, argv, files, outputs) {
-  for (const [name, bytes] of Object.entries(files || {})) py.FS.writeFile('/w/' + name, bytes);
+function run(py, argv, files, outputs, mod) {
+  for (const [name, bytes] of Object.entries(files)) py.FS.writeFile('/w/' + name, bytes);
   py.globals.set('ARGV', py.toPy(argv));
-  stage('실행 중');
+  py.globals.set('MOD', mod);
   const res = py.runPython(`
-import io, contextlib, hwpdoc
+import io, contextlib, importlib
 _buf = io.StringIO()
 with contextlib.redirect_stdout(_buf), contextlib.redirect_stderr(_buf):
-    _code = hwpdoc.main(list(ARGV))
+    try:
+        _code = importlib.import_module(MOD).main(list(ARGV))
+    except SystemExit as _e:
+        _code = _e.code if isinstance(_e.code, int) else 1
 (_code, _buf.getvalue())
 `).toJs();
-  stage('실행 끝');
   const out = {};
-  for (const name of outputs || []) {
+  for (const name of outputs) {
     try { out[name] = py.FS.readFile('/w/' + name); } catch (e) { out[name] = null; }
+  }
+  for (const name of [...Object.keys(files), ...outputs]) {
+    try { py.FS.unlink('/w/' + name); } catch (e) { /* 없음 */ }
   }
   return { code: res[0], log: res[1], files: out };
 }
 
-self.onmessage = async (e) => {
-  const { id, argv, files, outputs } = e.data;
+self.onmessage = async e => {
+  const { id, boot: only, argv, files = {}, outputs = [], mod = 'hwpdoc' } = e.data;
   try {
-    const t0 = performance.now();
     const py = await boot();
-    try { py.FS.mkdir('/w'); } catch (err) { /* 이미 있음 */ }
-    const r = argv ? await run(py, argv, files, outputs) : { code: 0, log: '', files: {} };
-    const transfer = Object.values(r.files).filter(Boolean).map(b => b.buffer);
-    self.postMessage({ id, ok: true, ...r, ms: Math.round(performance.now() - t0) }, transfer);
+    if (only) return self.postMessage({ id, ok: true });
+    const r = run(py, argv, files, outputs, mod);
+    self.postMessage({ id, ok: true, ...r }, Object.values(r.files).filter(Boolean).map(b => b.buffer));
   } catch (err) {
     self.postMessage({ id, ok: false, error: String((err && err.message) || err) });
   }
